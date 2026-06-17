@@ -1,0 +1,31 @@
+{
+  "routingRulesToAdd": [
+    {"type": "field", "protocol": ["bittorrent"], "ruleTag": "TORRENT_BLOCK", "outboundTag": "BLOCK"},
+    {"type": "field", "port": "6881-6889,51413,21413,17417,37305", "ruleTag": "TORRENT_BY_PORT", "outboundTag": "BLOCK"},
+    {"type": "field", "domain": ["geosite:category-public-tracker"], "ruleTag": "TORRENT_BY_DOMAIN", "outboundTag": "BLOCK"},
+    {"type": "field", "protocol": ["bittorrent"], "outboundTag": "TORRENT"}
+  ],
+  "outboundsToEnsure": [
+    {"tag": "BLOCK", "protocol": "blackhole"},
+    {"tag": "TORRENT", "protocol": "blackhole"}
+  ],
+  "inboundSniffing": {"enabled": true, "destOverride": ["http", "tls", "quic"]},
+  "log": {
+    "error": "/var/log/remnanode/error.log",
+    "access": "/var/log/remnanode/access.log",
+    "loglevel": "warning"
+  },
+  "nodePluginConfig": {
+    "torrentBlocker": {
+      "enabled": true,
+      "ignoreLists": {"ip": [], "userId": []},
+      "blockDuration": 86400,
+      "includeRuleTags": ["TORRENT_BY_PORT", "TORRENT_BY_DOMAIN"]
+    },
+    "egressFilter": {
+      "enabled": true,
+      "blockedIps": [],
+      "blockedPorts": [6881,6882,6883,6884,6885,6886,6887,6888,6889,51413,21413,17417,37305]
+    }
+  }
+}
