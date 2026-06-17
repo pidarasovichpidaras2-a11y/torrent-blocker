@@ -5,7 +5,10 @@ One-command server setup for blocking torrents on Remnawave/Xray nodes.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pidarasovichpidaras2-a11y/torrent-blocker/v1.0.2/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/pidarasovichpidaras2-a11y/torrent-blocker/v1.0.3/install.sh | bash
+
+# if remnanode is in a custom folder:
+REMNANODE_DIR=/path/to/remnanode curl -fsSL .../v1.0.3/install.sh | bash
 ```
 
 ## What it installs

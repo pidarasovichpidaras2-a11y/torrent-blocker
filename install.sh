@@ -21,7 +21,10 @@ usage() {
 Remnawave node — server-side torrent blocking setup
 
 Usage:
-  curl -fsSL https://raw.githubusercontent.com/pidarasovichpidaras2-a11y/torrent-blocker/v1.0.2/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/pidarasovichpidaras2-a11y/torrent-blocker/v1.0.3/install.sh | bash
+
+  # If remnanode not in default paths:
+  REMNANODE_DIR=/path/to/remnanode curl -fsSL .../install.sh | bash
   bash install.sh [--skip-tblocker] [--skip-egress]
 
 Server setup only. Panel (plugin + routing rules) must be configured separately.
@@ -41,14 +44,42 @@ require_root() {
   [[ "${EUID:-$(id -u)}" -eq 0 ]] || die "Run as root"
 }
 
+find_docker() {
+  if command -v docker >/dev/null 2>&1; then
+    command -v docker
+    return 0
+  fi
+  for p in /usr/bin/docker /usr/local/bin/docker /snap/bin/docker; do
+    if [[ -x "$p" ]]; then
+      echo "$p"
+      return 0
+    fi
+  done
+  return 1
+}
+
+find_compose_files() {
+  local dir
+  for dir in /opt /root /home /srv ${REMNANODE_DIR:+$REMNANODE_DIR}; do
+    [[ -d "$dir" ]] || continue
+    find "$dir" -maxdepth 4 -name 'docker-compose.yml' 2>/dev/null
+  done | sort -u
+}
+
 check_prerequisites() {
   log "Checking prerequisites..."
 
-  if ! command -v docker >/dev/null 2>&1; then
-    warn "docker not found — continuing anyway (install remnanode later)"
-    warn "Install docker: curl -fsSL https://get.docker.com | sh"
-  elif ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qE 'remnanode'; then
-    warn "No running remnanode container — start node after install"
+  DOCKER_BIN="$(find_docker || true)"
+  if [[ -z "$DOCKER_BIN" ]]; then
+    warn "docker CLI not found in PATH"
+    warn "If remnanode runs in docker, install: curl -fsSL https://get.docker.com | sh"
+  else
+    log "docker: $DOCKER_BIN"
+    if ! "$DOCKER_BIN" ps --format '{{.Names}}' 2>/dev/null | grep -qiE 'remnanode|remna'; then
+      warn "No running remnanode container visible"
+    else
+      log "remnanode container: OK ($("$DOCKER_BIN" ps --format '{{.Names}}' | grep -iE 'remnanode|remna' | tr '\n' ' '))"
+    fi
   fi
 
   if ! command -v nft >/dev/null 2>&1; then
@@ -82,12 +113,13 @@ EOF
 
 patch_docker_compose_files() {
   log "Patching docker-compose (log volume)..."
-  local patched=0
+  local patched=0 compose found=0
   while IFS= read -r compose; do
     [[ -f "$compose" ]] || continue
-    grep -q 'remnawave/node' "$compose" 2>/dev/null || continue
+    found=$((found + 1))
+    grep -qE 'remnawave/node|remnanode' "$compose" 2>/dev/null || continue
     if grep -q '/var/log/remnanode:/var/log/remnanode' "$compose"; then
-      log "  OK: $compose"
+      log "  OK (volume exists): $compose"
       continue
     fi
     if grep -q '^[[:space:]]*volumes:' "$compose"; then
@@ -102,11 +134,17 @@ patch_docker_compose_files() {
     fi
     log "  Patched: $compose"
     patched=$((patched + 1))
-  done < <(find /opt -maxdepth 3 -name 'docker-compose.yml' 2>/dev/null)
+  done < <(find_compose_files)
+
+  if [[ "$found" -eq 0 ]]; then
+    warn "No docker-compose.yml found in /opt /root /home /srv"
+    warn "Set path manually: REMNANODE_DIR=/path/to/remnanode bash install.sh"
+  fi
+
   if [[ "$patched" -gt 0 ]]; then
     log "Restart containers after install:"
-    find /opt -maxdepth 3 -name 'docker-compose.yml' 2>/dev/null | while read -r c; do
-      grep -q 'remnawave/node' "$c" 2>/dev/null && echo "  cd $(dirname "$c") && docker compose up -d"
+    find_compose_files | while read -r c; do
+      grep -qE 'remnawave/node|remnanode' "$c" 2>/dev/null && echo "  cd $(dirname "$c") && docker compose up -d"
     done
   fi
 }
