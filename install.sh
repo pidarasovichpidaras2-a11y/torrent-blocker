@@ -21,7 +21,7 @@ usage() {
 Remnawave node — server-side torrent blocking setup
 
 Usage:
-  curl -fsSL https://raw.githubusercontent.com/pidarasovichpidaras2-a11y/torrent-blocker/main/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/pidarasovichpidaras2-a11y/torrent-blocker/v1.0.1/install.sh | bash
   bash install.sh [--skip-tblocker] [--skip-egress]
 
 Server setup only. Panel (plugin + routing rules) must be configured separately.
@@ -43,10 +43,17 @@ require_root() {
 
 check_prerequisites() {
   log "Checking prerequisites..."
-  command -v docker >/dev/null 2>&1 || die "docker not found"
-  command -v nft  >/dev/null 2>&1 || die "nftables not found — apt install nftables"
-  if ! docker ps --format '{{.Names}}' | grep -qE 'remnanode'; then
+
+  if ! command -v docker >/dev/null 2>&1; then
+    warn "docker not found — continuing anyway (install remnanode later)"
+    warn "Install docker: curl -fsSL https://get.docker.com | sh"
+  elif ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qE 'remnanode'; then
     warn "No running remnanode container — start node after install"
+  fi
+
+  if ! command -v nft >/dev/null 2>&1; then
+    log "Installing nftables..."
+    apt-get update -qq && apt-get install -y -qq nftables
   fi
 }
 
@@ -197,6 +204,12 @@ print_done() {
   cat <<'EOF'
 
 Server setup complete.
+
+If remnanode is not installed yet:
+  1. Install docker:  curl -fsSL https://get.docker.com | sh
+  2. Install remnanode (Remnawave node installer)
+  3. Re-run this script OR restart containers:
+       cd /opt/remnanode && docker compose up -d
 
 Panel (manual):
   1. Enable Torrent Blocker + Egress Filter plugins
