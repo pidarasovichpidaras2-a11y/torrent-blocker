@@ -21,7 +21,7 @@ usage() {
 Remnawave node — server-side torrent blocking setup
 
 Usage:
-  curl -fsSL https://raw.githubusercontent.com/pidarasovichpidaras2-a11y/torrent-blocker/v1.0.1/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/pidarasovichpidaras2-a11y/torrent-blocker/v1.0.2/install.sh | bash
   bash install.sh [--skip-tblocker] [--skip-egress]
 
 Server setup only. Panel (plugin + routing rules) must be configured separately.
@@ -111,13 +111,26 @@ patch_docker_compose_files() {
   fi
 }
 
+install_tblocker_package() {
+  apt-get update -qq
+  apt-get install -y -qq curl gnupg ca-certificates
+  if [[ ! -f /etc/apt/sources.list.d/openrepo-xray-tools.list ]]; then
+    curl -fsSL https://repo.remna.dev/xray-tools/public.gpg \
+      | gpg --yes --dearmor -o /usr/share/keyrings/openrepo-xray-tools.gpg
+    echo "deb [arch=any signed-by=/usr/share/keyrings/openrepo-xray-tools.gpg] https://repo.remna.dev/xray-tools/ stable main" \
+      > /etc/apt/sources.list.d/openrepo-xray-tools.list
+  fi
+  apt-get update -qq
+  apt-get install -y -qq tblocker
+}
+
 install_tblocker() {
   [[ "$SKIP_TBLOCKER" == true ]] && { log "Skipping tblocker"; return 0; }
-  if [[ -x "$TBLOCKER_DIR/tblocker" ]] || dpkg -l tblocker >/dev/null 2>&1; then
+  if dpkg -l tblocker >/dev/null 2>&1; then
     log "tblocker already installed"
   else
-    log "Installing tblocker..."
-    curl -fsSL https://git.new/install | bash
+    log "Installing tblocker (non-interactive)..."
+    install_tblocker_package
   fi
   mkdir -p "$TBLOCKER_DIR"
   cat > "$TBLOCKER_DIR/config.yaml" <<'EOF'
@@ -126,9 +139,12 @@ BlockDuration: 1440
 TorrentTag: "TORRENT"
 BlockMode: "nft"
 EOF
-  systemctl enable tblocker
-  systemctl restart tblocker
-  log "tblocker: $(systemctl is-active tblocker)"
+  systemctl enable tblocker 2>/dev/null || true
+  if systemctl restart tblocker 2>/dev/null; then
+    log "tblocker: $(systemctl is-active tblocker)"
+  else
+    warn "tblocker installed but not running yet (normal before remnanode is up)"
+  fi
 }
 
 install_egress_filter() {
