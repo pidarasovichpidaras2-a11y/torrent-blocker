@@ -21,7 +21,7 @@ usage() {
 Remnawave node — server-side torrent blocking setup
 
 Usage:
-  curl -fsSL https://raw.githubusercontent.com/USER/REPO/main/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/pidarasovichpidaras2-a11y/torrent-blocker/main/install.sh | bash
   bash install.sh [--skip-tblocker] [--skip-egress]
 
 Server setup only. Panel (plugin + routing rules) must be configured separately.
