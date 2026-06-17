@@ -170,7 +170,7 @@ EOF
 install_helper_files() {
   mkdir -p "$INSTALL_DIR"
   [[ -f "$INSTALL_DIR/panel-torrent-block-config.json" ]] && return 0
-  curl -fsSL https://raw.githubusercontent.com/pidarasovichpidaras2-a11y/torrent-blocker/main/panel-torrent-block-config.json" \
+  curl -fsSL "https://raw.githubusercontent.com/pidarasovichpidaras2-a11y/torrent-blocker/main/panel-torrent-block-config.json" \
     -o "$INSTALL_DIR/panel-torrent-block-config.json" 2>/dev/null || cat > "$INSTALL_DIR/panel-torrent-block-config.json" <<'EOF'
 {
   "routingRulesToAdd": [
